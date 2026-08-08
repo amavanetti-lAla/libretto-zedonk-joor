@@ -4,6 +4,20 @@
 
 let currentSection = SECTIONS[0].id;
 let notesUnsub = null;
+let stepNotesUnsub = null;
+let stepNotesCache = {}; // stepId -> text
+
+function escapeHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function stepId(sectionId, groupIndex, stepIndex) {
+  return `${sectionId}__g${groupIndex}__s${stepIndex}`;
+}
 
 // ---------- Rendering contenuti ----------
 
@@ -41,9 +55,11 @@ function renderMain() {
     </div>
   `;
 
-  section.groups.forEach((group) => {
+  section.groups.forEach((group, gi) => {
     html += `<div class="group"><div class="group-label">${group.label}</div>`;
     group.steps.forEach((step, i) => {
+      const id = stepId(section.id, gi, i);
+      const noteValue = escapeHtml(stepNotesCache[id]);
       html += `
         <div class="docket">
           <div class="docket-row">
@@ -53,6 +69,10 @@ function renderMain() {
               <p class="step-body">${step.body}</p>
               ${step.detail ? `<p class="step-detail">${step.detail}</p>` : ""}
               ${step.warn ? `<div class="step-warn"><span class="mark">!</span><span>${step.warn}</span></div>` : ""}
+              <div class="step-note">
+                <div class="step-note-label">✎ tua nota <span class="step-note-saved" data-saved-for="${id}">salvata</span></div>
+                <textarea class="step-note-input" data-step-id="${id}" placeholder="Aggiungi qui un tuo appunto su questo passaggio...">${noteValue}</textarea>
+              </div>
             </div>
           </div>
         </div>
@@ -62,6 +82,25 @@ function renderMain() {
   });
 
   main.innerHTML = html;
+  attachStepNoteHandlers();
+}
+
+function attachStepNoteHandlers() {
+  document.querySelectorAll(".step-note-input").forEach((ta) => {
+    let timeout;
+    ta.addEventListener("input", () => {
+      clearTimeout(timeout);
+      const id = ta.dataset.stepId;
+      timeout = setTimeout(() => {
+        saveStepNote(id, ta.value);
+        const flag = document.querySelector(`.step-note-saved[data-saved-for="${id}"]`);
+        if (flag) {
+          flag.classList.add("show");
+          setTimeout(() => flag.classList.remove("show"), 1200);
+        }
+      }, 500);
+    });
+  });
 }
 
 // ---------- Note personali ----------
@@ -237,6 +276,86 @@ function deleteNote(id) {
   }
 }
 
+// ---------- Note per-passaggio (in verde, dentro le istruzioni) ----------
+
+function localStepNotesKey() {
+  return `zj_stepnotes_${getWorkspaceId()}`;
+}
+
+function loadLocalStepNotes() {
+  try {
+    return JSON.parse(localStorage.getItem(localStepNotesKey()) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveLocalStepNotes(map) {
+  localStorage.setItem(localStepNotesKey(), JSON.stringify(map));
+}
+
+function subscribeStepNotes() {
+  if (stepNotesUnsub) {
+    stepNotesUnsub();
+    stepNotesUnsub = null;
+  }
+  const ws = getWorkspaceId();
+  if (!ws) {
+    stepNotesCache = {};
+    renderMain();
+    return;
+  }
+
+  if (typeof firebaseDb !== "undefined" && firebaseDb) {
+    stepNotesUnsub = firebaseDb
+      .collection("workspaces")
+      .doc(ws)
+      .collection("stepNotes")
+      .onSnapshot((snap) => {
+        const map = {};
+        snap.forEach((doc) => (map[doc.id] = doc.data().text || ""));
+        stepNotesCache = map;
+        refreshStepNoteValues();
+      });
+  } else {
+    stepNotesCache = loadLocalStepNotes();
+    renderMain();
+  }
+}
+
+// Aggiorna i valori nel DOM senza ridisegnare tutto (non toglie il focus
+// mentre l'utente sta scrivendo in un altro campo).
+function refreshStepNoteValues() {
+  document.querySelectorAll(".step-note-input").forEach((ta) => {
+    if (document.activeElement === ta) return; // non toccare quello che si sta scrivendo
+    const id = ta.dataset.stepId;
+    const value = stepNotesCache[id] || "";
+    if (ta.value !== value) ta.value = value;
+  });
+}
+
+function saveStepNote(id, text) {
+  const ws = getWorkspaceId();
+  if (!ws) {
+    alert("Imposta prima un codice workspace (pannello Note personali) per salvare gli appunti.");
+    return;
+  }
+
+  if (typeof firebaseDb !== "undefined" && firebaseDb) {
+    firebaseDb
+      .collection("workspaces")
+      .doc(ws)
+      .collection("stepNotes")
+      .doc(id)
+      .set({ text, updatedAt: Date.now() }, { merge: true });
+  } else {
+    const map = loadLocalStepNotes();
+    map[id] = text;
+    saveLocalStepNotes(map);
+    stepNotesCache = map;
+  }
+}
+
 // ---------- Init ----------
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -247,12 +366,14 @@ document.addEventListener("DOMContentLoaded", () => {
   wsInput.value = getWorkspaceId();
   updateSyncIndicator();
   subscribeNotes();
+  subscribeStepNotes();
 
   document.getElementById("workspaceSave").addEventListener("click", () => {
     const val = wsInput.value.trim().toLowerCase().replace(/\s+/g, "-");
     setWorkspaceId(val);
     updateSyncIndicator();
     subscribeNotes();
+    subscribeStepNotes();
   });
 
   document.getElementById("addNoteBtn").addEventListener("click", addNote);
