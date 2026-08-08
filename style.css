@@ -229,6 +229,46 @@ main{
   color: var(--ink-soft);
   line-height:1.5;
 }
+.step-note{
+  margin-top:10px;
+  background: #EAF3EA;
+  border: 1px dashed var(--green-ok);
+  border-radius: 4px;
+  padding: 8px 10px;
+}
+.step-note-label{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-family: var(--mono);
+  font-size:0.68rem;
+  color: var(--green-ok);
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+  margin-bottom:4px;
+}
+.step-note-input{
+  width:100%;
+  min-height: 32px;
+  border:none;
+  background:transparent;
+  resize:vertical;
+  font-family: var(--sans);
+  font-size:0.86rem;
+  color: #234328;
+  padding:0;
+}
+.step-note-input::placeholder{ color: #7FA184; }
+.step-note-input:focus{ outline:none; }
+.step-note-saved{
+  font-family: var(--mono);
+  font-size:0.62rem;
+  color: var(--green-ok);
+  opacity:0;
+  transition: opacity .3s ease;
+}
+.step-note-saved.show{ opacity:0.8; }
+
 .step-warn{
   margin-top:8px;
   display:flex;
