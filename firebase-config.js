@@ -1,26 +1,16 @@
 // ============================================================
 // CONFIGURAZIONE FIREBASE — sostituisci i valori sotto con quelli
 // del TUO progetto Firebase (vedi README.md, sezione "Attivare il sync").
-//
-// Se lasci firebaseConfig = null, l'app funziona comunque ma le note
-// restano salvate solo nel browser del dispositivo che stai usando
-// (nessun sync multi-dispositivo).
 // ============================================================
 
-const firebaseConfig = null;
-
-/* Esempio — decommenta e compila con i tuoi dati reali:
-
 const firebaseConfig = {
-  apiKey: "AIzaSy...",
-  authDomain: "tuoprogetto.firebaseapp.com",
-  projectId: "tuoprogetto",
-  storageBucket: "tuoprogetto.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef123456"
+  apiKey: "AIzaSyBeyIZwWqFilocgc7-z5Z1eCQNZPJ-5BvI",
+  authDomain: "libretto-operativo-zedonk.firebaseapp.com",
+  projectId: "libretto-operativo-zedonk",
+  storageBucket: "libretto-operativo-zedonk.firebasestorage.app",
+  messagingSenderId: "671087494755",
+  appId: "1:671087494755:web:e6e37d57c47769208a1a56"
 };
-
-*/
 
 let firebaseDb = null;
 if (firebaseConfig) {
