@@ -48,6 +48,9 @@ salvate solo nel browser del dispositivo che usi (non sincronizzate).
        match /workspaces/{workspace}/notes/{note} {
          allow read, write: if true;
        }
+       match /workspaces/{workspace}/stepNotes/{note} {
+         allow read, write: if true;
+       }
      }
    }
    ```
@@ -99,7 +102,18 @@ salvate solo nel browser del dispositivo che usi (non sincronizzate).
 
 ---
 
-## 3. Usare le note sincronizzate
+## 3. Due tipi di note
+
+- **Note verdi, dentro ogni passaggio**: appunti legati a un singolo step
+  delle istruzioni (es. una scorciatoia che hai scoperto per quel punto
+  esatto). Si salvano da sole mentre scrivi.
+- **Note nel cassetto "Note personali"** (in basso a destra): appunti
+  liberi, non legati a un passaggio specifico — utili per contatti,
+  password, promemoria generali.
+
+Entrambe usano lo stesso codice workspace per sincronizzarsi tra dispositivi.
+
+## 4. Usare le note sincronizzate
 
 1. Apri il sito, clicca **📝 Note personali** in basso a destra.
 2. Inserisci un **codice workspace** a tua scelta (es. `marta-2026`) e
@@ -110,7 +124,7 @@ salvate solo nel browser del dispositivo che usi (non sincronizzate).
 
 ---
 
-## 4. Aggiornare i contenuti del libretto
+## 5. Aggiornare i contenuti del libretto
 
 Tutte le procedure sono in `data.js`, come un semplice elenco di
 sezioni → gruppi → step. Per modificarle basta editare quel file
