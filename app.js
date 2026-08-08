@@ -24,6 +24,10 @@ function stepId(sectionId, groupIndex, stepIndex) {
 function renderNav() {
   const nav = document.getElementById("tagNav");
   nav.innerHTML = "";
+  const active = SECTIONS.find((s) => s.id === currentSection);
+  document.getElementById("navCurrentNum").textContent = active.tag;
+  document.getElementById("navCurrentTitle").textContent = active.title;
+
   SECTIONS.forEach((s) => {
     const li = document.createElement("li");
     li.className = "tag" + (s.id === currentSection ? " active" : "");
@@ -38,6 +42,7 @@ function renderNav() {
       currentSection = s.id;
       renderNav();
       renderMain();
+      document.getElementById("sidebarNavRow").classList.remove("open");
     });
     nav.appendChild(li);
   });
@@ -399,6 +404,10 @@ document.addEventListener("DOMContentLoaded", () => {
   renderNav();
   renderMain();
   initHeaderCollapse();
+
+  document.getElementById("navCurrent").addEventListener("click", () => {
+    document.getElementById("sidebarNavRow").classList.toggle("open");
+  });
 
   const wsInput = document.getElementById("workspaceInput");
   wsInput.value = getWorkspaceId();
