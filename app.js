@@ -356,11 +356,49 @@ function saveStepNote(id, text) {
   }
 }
 
+// ---------- Collapse header su scroll (solo mobile) ----------
+
+function initHeaderCollapse() {
+  const sidebar = document.getElementById("sidebar");
+  const mq = window.matchMedia("(max-width: 860px)");
+  let lastY = window.scrollY;
+  let ticking = false;
+
+  function onScroll() {
+    if (!mq.matches) {
+      sidebar.classList.remove("collapsed");
+      ticking = false;
+      return;
+    }
+    const y = window.scrollY;
+    const goingDown = y > lastY;
+    const pastThreshold = y > 60;
+
+    if (goingDown && pastThreshold) {
+      sidebar.classList.add("collapsed");
+    } else if (!goingDown || y < 20) {
+      sidebar.classList.remove("collapsed");
+    }
+    lastY = y;
+    ticking = false;
+  }
+
+  window.addEventListener("scroll", () => {
+    if (!ticking) {
+      window.requestAnimationFrame(onScroll);
+      ticking = true;
+    }
+  });
+
+  mq.addEventListener("change", () => sidebar.classList.remove("collapsed"));
+}
+
 // ---------- Init ----------
 
 document.addEventListener("DOMContentLoaded", () => {
   renderNav();
   renderMain();
+  initHeaderCollapse();
 
   const wsInput = document.getElementById("workspaceInput");
   wsInput.value = getWorkspaceId();
