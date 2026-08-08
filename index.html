@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Libretto Istruzioni · Zedonk ↔ JOOR</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      Libretto<br/>Operativo
+      <small>Zedonk ↔ JOOR</small>
+    </div>
+    <ul class="tag-nav" id="tagNav"></ul>
+    <div class="sidebar-foot">
+      <span class="sync-dot off" id="syncDot"></span><span id="syncLabel">—</span>
+    </div>
+  </aside>
+
+  <main id="main"></main>
+</div>
+
+<button class="notes-toggle" id="notesToggle">📝 Note personali</button>
+
+<div class="notes-drawer" id="notesDrawer">
+  <div class="notes-head">
+    <div>
+      <h2>Note personali</h2>
+      <span>Sincronizzate tra i tuoi dispositivi</span>
+    </div>
+    <button class="notes-close" id="notesClose">✕</button>
+  </div>
+
+  <div class="workspace-box">
+    <input type="text" id="workspaceInput" placeholder="codice workspace, es. marta-2026" />
+    <button id="workspaceSave">Salva</button>
+  </div>
+
+  <div class="notes-body" id="notesBody"></div>
+
+  <div class="notes-foot">
+    <button class="add-note" id="addNoteBtn">+ nuova nota</button>
+  </div>
+</div>
+
+<!-- Firebase (opzionale, per sync tra dispositivi — vedi README.md) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
