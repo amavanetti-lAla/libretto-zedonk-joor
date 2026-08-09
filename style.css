@@ -469,9 +469,6 @@ main{
 @media (max-width: 860px){
   .app{ grid-template-columns: 1fr; }
   .sidebar{
-    position: sticky;
-    top:0;
-    z-index: 15;
     flex-direction:column;
     gap:0;
     border-right:none;
