@@ -38,6 +38,11 @@ function renderNav() {
       currentSection = s.id;
       renderNav();
       renderMain();
+      const mq = window.matchMedia("(max-width: 860px)");
+      if (mq.matches) {
+        const main = document.getElementById("main");
+        main.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     });
     nav.appendChild(li);
   });
