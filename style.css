@@ -509,7 +509,11 @@ main{
   }
   .tag-title{ font-size:1rem; }
   .tag-sub{ font-size:0.8rem; }
-  .sidebar-foot{ display:none; }
+  .sidebar-foot{
+    display:block;
+    padding: 14px 16px 18px;
+    border-top: 1px dashed var(--line);
+  }
   main{ padding: 28px 20px 100px; }
   .notes-drawer{ width:100%; max-width:100%; }
 }
