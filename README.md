@@ -17,7 +17,9 @@ istruzioni e un'area note personali sincronizzata tra dispositivi.
    - `app.js`
    - `data.js`
    - `firebase-config.js`
-   - (puoi farlo trascinando i file nella pagina "Add file → Upload files" su GitHub, senza usare la riga di comando)
+   - `manifest.json`
+   - la cartella **`icons/`** con tutti e 5 i file dentro (icon-192.png, icon-512.png, icon-512-maskable.png, apple-touch-icon.png, favicon-32.png)
+   - (puoi farlo trascinando i file nella pagina "Add file → Upload files" su GitHub — trascinando anche la cartella `icons` intera, GitHub la ricrea automaticamente)
 4. Vai su **Settings → Pages** del repository.
 5. In "Build and deployment", seleziona **Deploy from a branch**, branch `main`, cartella `/root`.
 6. Salva. Dopo 1-2 minuti il sito sarà live a un indirizzo tipo:
