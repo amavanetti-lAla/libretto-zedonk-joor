@@ -324,6 +324,46 @@ main{
 }
 .notes-toggle:hover{ background:#FFCB3D; }
 
+.vault-toggle{
+  position: fixed;
+  right: 28px;
+  bottom: 84px;
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-family: var(--mono);
+  font-size:0.8rem;
+  letter-spacing:0.04em;
+  cursor:pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  display:flex; align-items:center; gap:8px;
+}
+.vault-toggle:hover{ border-color: var(--accent); }
+
+.vault-gate{ padding: 18px 20px; }
+.vault-error{
+  color: var(--danger);
+  font-size:0.8rem;
+  font-family: var(--mono);
+  min-height: 1.2em;
+  margin: 8px 0 0;
+}
+.vault-lock-btn{
+  width:100%;
+  margin-top:8px;
+  padding: 9px;
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  border-radius:8px;
+  font-family: var(--mono);
+  font-size:0.76rem;
+  cursor:pointer;
+}
+.vault-lock-btn:hover{ border-color: var(--danger); color: var(--danger); }
+
 .notes-drawer{
   position: fixed;
   top:0; right:0;
