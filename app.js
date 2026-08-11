@@ -398,6 +398,236 @@ function initHeaderCollapse() {
   mq.addEventListener("change", () => sidebar.classList.remove("collapsed"));
 }
 
+// ---------- Area riservata (cifrata) ----------
+// I contenuti vengono cifrati nel browser con AES-GCM prima di essere
+// salvati. La chiave deriva dalla passphrase inserita dall'utente + un
+// "sale" salvato in Firestore (il sale non è segreto, serve solo a
+// rendere unica la cifratura). Senza la passphrase giusta, i dati
+// restano illeggibili anche a chi ha accesso al database.
+
+let vaultKey = null; // CryptoKey, solo in memoria, mai salvata
+let vaultUnsub = null;
+let vaultCache = {}; // id -> {iv, ciphertext, updatedAt}
+
+function b64encode(bytes) {
+  return btoa(String.fromCharCode(...new Uint8Array(bytes)));
+}
+function b64decode(str) {
+  return Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
+}
+
+async function getOrCreateVaultSalt(ws) {
+  if (!firebaseDb) {
+    // fallback locale: sale salvato per workspace nel browser
+    const key = `zj_vaultsalt_${ws}`;
+    let saved = localStorage.getItem(key);
+    if (!saved) {
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      saved = b64encode(salt);
+      localStorage.setItem(key, saved);
+    }
+    return b64decode(saved);
+  }
+  const ref = firebaseDb.collection("workspaces").doc(ws).collection("secure").doc("meta");
+  const snap = await ref.get();
+  if (snap.exists && snap.data().salt) {
+    return b64decode(snap.data().salt);
+  }
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  await ref.set({ salt: b64encode(salt) });
+  return salt;
+}
+
+async function deriveVaultKey(passphrase, saltBytes) {
+  const enc = new TextEncoder();
+  const baseKey = await crypto.subtle.importKey("raw", enc.encode(passphrase), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: saltBytes, iterations: 150000, hash: "SHA-256" },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function vaultEncrypt(key, plaintext) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder();
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plaintext));
+  return { iv: b64encode(iv), ciphertext: b64encode(ciphertext) };
+}
+
+async function vaultDecrypt(key, ivB64, ciphertextB64) {
+  const dec = new TextDecoder();
+  const plainBuf = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: b64decode(ivB64) },
+    key,
+    b64decode(ciphertextB64)
+  );
+  return dec.decode(plainBuf);
+}
+
+async function unlockVault() {
+  const ws = getWorkspaceId();
+  const errEl = document.getElementById("vaultError");
+  errEl.textContent = "";
+
+  if (!ws) {
+    errEl.textContent = "Imposta prima un codice workspace in 'Note personali'.";
+    return;
+  }
+  const passInput = document.getElementById("vaultPassphrase");
+  const passphrase = passInput.value;
+  if (!passphrase) {
+    errEl.textContent = "Inserisci una passphrase.";
+    return;
+  }
+
+  try {
+    const salt = await getOrCreateVaultSalt(ws);
+    const key = await deriveVaultKey(passphrase, salt);
+
+    // Verifica la passphrase provando a decifrare una voce esistente, se c'è.
+    const existingIds = Object.keys(vaultCache);
+    if (existingIds.length > 0) {
+      const test = vaultCache[existingIds[0]];
+      await vaultDecrypt(key, test.iv, test.ciphertext); // lancia errore se sbagliata
+    }
+
+    vaultKey = key;
+    passInput.value = "";
+    document.getElementById("vaultGate").style.display = "none";
+    document.getElementById("vaultBody").style.display = "flex";
+    document.getElementById("vaultFoot").style.display = "block";
+    await renderVaultEntries();
+  } catch (e) {
+    errEl.textContent = "Passphrase errata, oppure dati non leggibili con questa chiave.";
+  }
+}
+
+function lockVault() {
+  vaultKey = null;
+  document.getElementById("vaultGate").style.display = "block";
+  document.getElementById("vaultBody").style.display = "none";
+  document.getElementById("vaultFoot").style.display = "none";
+  document.getElementById("vaultBody").innerHTML = "";
+}
+
+function subscribeVault() {
+  if (vaultUnsub) {
+    vaultUnsub();
+    vaultUnsub = null;
+  }
+  const ws = getWorkspaceId();
+  if (!ws) return;
+
+  if (firebaseDb) {
+    vaultUnsub = firebaseDb
+      .collection("workspaces")
+      .doc(ws)
+      .collection("secure")
+      .onSnapshot((snap) => {
+        const map = {};
+        snap.forEach((doc) => {
+          if (doc.id === "meta") return;
+          map[doc.id] = doc.data();
+        });
+        vaultCache = map;
+        if (vaultKey) renderVaultEntries();
+      });
+  } else {
+    try {
+      vaultCache = JSON.parse(localStorage.getItem(`zj_vault_${ws}`) || "{}");
+    } catch {
+      vaultCache = {};
+    }
+  }
+}
+
+function saveVaultLocal() {
+  const ws = getWorkspaceId();
+  if (!ws || firebaseDb) return;
+  localStorage.setItem(`zj_vault_${ws}`, JSON.stringify(vaultCache));
+}
+
+async function renderVaultEntries() {
+  const body = document.getElementById("vaultBody");
+  const ids = Object.keys(vaultCache);
+
+  if (ids.length === 0) {
+    body.innerHTML = `<p class="setup-notice">Nessuna voce ancora. Usa "+ nuova voce riservata" qui sotto.</p>`;
+    return;
+  }
+
+  body.innerHTML = "";
+  for (const id of ids.sort((a, b) => (vaultCache[b].updatedAt || 0) - (vaultCache[a].updatedAt || 0))) {
+    const entry = vaultCache[id];
+    let text = "";
+    try {
+      text = await vaultDecrypt(vaultKey, entry.iv, entry.ciphertext);
+    } catch {
+      text = "⚠️ Impossibile decifrare (passphrase diversa da quella usata per salvare questa voce).";
+    }
+    const date = entry.updatedAt ? new Date(entry.updatedAt).toLocaleDateString("it-IT") : "";
+    const card = document.createElement("div");
+    card.className = "note-card";
+    card.innerHTML = `
+      <div class="meta">
+        <span>${date}</span>
+        <button class="note-del" data-id="${id}">elimina</button>
+      </div>
+      <textarea data-id="${id}" placeholder="Scrivi qui...">${escapeHtml(text)}</textarea>
+    `;
+    body.appendChild(card);
+  }
+
+  body.querySelectorAll("textarea").forEach((ta) => {
+    let timeout;
+    ta.addEventListener("input", () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => saveVaultEntry(ta.dataset.id, ta.value), 500);
+    });
+  });
+  body.querySelectorAll(".note-del").forEach((btn) => {
+    btn.addEventListener("click", () => deleteVaultEntry(btn.dataset.id));
+  });
+}
+
+async function saveVaultEntry(id, plaintext) {
+  if (!vaultKey) return;
+  const { iv, ciphertext } = await vaultEncrypt(vaultKey, plaintext);
+  const ws = getWorkspaceId();
+  const entry = { iv, ciphertext, updatedAt: Date.now() };
+
+  if (firebaseDb) {
+    firebaseDb.collection("workspaces").doc(ws).collection("secure").doc(id).set(entry);
+  } else {
+    vaultCache[id] = entry;
+    saveVaultLocal();
+  }
+}
+
+async function addVaultEntry() {
+  if (!vaultKey) return;
+  const id = "v" + Date.now();
+  await saveVaultEntry(id, "");
+  if (!firebaseDb) {
+    vaultCache[id] = vaultCache[id] || { updatedAt: Date.now() };
+    await renderVaultEntries();
+  }
+}
+
+function deleteVaultEntry(id) {
+  const ws = getWorkspaceId();
+  if (firebaseDb) {
+    firebaseDb.collection("workspaces").doc(ws).collection("secure").doc(id).delete();
+  } else {
+    delete vaultCache[id];
+    saveVaultLocal();
+    renderVaultEntries();
+  }
+}
+
 // ---------- Init ----------
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -427,4 +657,18 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("notesClose").addEventListener("click", () => {
     document.getElementById("notesDrawer").classList.remove("open");
   });
+
+  document.getElementById("vaultToggle").addEventListener("click", () => {
+    document.getElementById("vaultDrawer").classList.add("open");
+    subscribeVault();
+  });
+  document.getElementById("vaultClose").addEventListener("click", () => {
+    document.getElementById("vaultDrawer").classList.remove("open");
+  });
+  document.getElementById("vaultUnlock").addEventListener("click", unlockVault);
+  document.getElementById("vaultPassphrase").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") unlockVault();
+  });
+  document.getElementById("vaultLockBtn").addEventListener("click", lockVault);
+  document.getElementById("addVaultBtn").addEventListener("click", addVaultEntry);
 });
