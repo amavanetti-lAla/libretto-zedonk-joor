@@ -41,6 +41,7 @@
 </div>
 
 <button class="notes-toggle" id="notesToggle">📝 Note personali</button>
+<button class="vault-toggle" id="vaultToggle">🔒 Area riservata</button>
 
 <div class="notes-drawer" id="notesDrawer">
   <div class="notes-head">
@@ -60,6 +61,36 @@
 
   <div class="notes-foot">
     <button class="add-note" id="addNoteBtn">+ nuova nota</button>
+  </div>
+</div>
+
+<div class="notes-drawer" id="vaultDrawer">
+  <div class="notes-head">
+    <div>
+      <h2>🔒 Area riservata</h2>
+      <span>Cifrata con la tua passphrase — nessuno può leggerla senza</span>
+    </div>
+    <button class="notes-close" id="vaultClose">✕</button>
+  </div>
+
+  <div id="vaultGate" class="vault-gate">
+    <p class="setup-notice">
+      Inserisci una <strong>passphrase</strong> a tua scelta. Non viene salvata da nessuna parte:
+      serve solo per cifrare/decifrare i contenuti in questo browser. Usa sempre la stessa
+      su ogni dispositivo, altrimenti non potrai leggere ciò che hai già scritto.
+    </p>
+    <div class="workspace-box">
+      <input type="password" id="vaultPassphrase" placeholder="la tua passphrase" />
+      <button id="vaultUnlock">Sblocca</button>
+    </div>
+    <p class="vault-error" id="vaultError"></p>
+  </div>
+
+  <div class="notes-body" id="vaultBody" style="display:none;"></div>
+
+  <div class="notes-foot" id="vaultFoot" style="display:none;">
+    <button class="add-note" id="addVaultBtn">+ nuova voce riservata</button>
+    <button class="vault-lock-btn" id="vaultLockBtn">Blocca di nuovo</button>
   </div>
 </div>
 
