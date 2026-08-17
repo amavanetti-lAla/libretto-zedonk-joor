@@ -262,4 +262,100 @@ const SECTIONS = [
       },
     ],
   },
+  {
+    id: "guida-joor",
+    tag: "08",
+    title: "Guida JOOR",
+    subtitle: "Nozioni base per operare sulla piattaforma",
+    groups: [
+      {
+        label: "Accesso alla piattaforma",
+        steps: [
+          {
+            title: "Login",
+            body: "Inserisci indirizzo email e password nella pagina di accesso JOOR, poi conferma. Al primo accesso ti verrà chiesto di accettare i termini di servizio.",
+            detail: "Se hai dimenticato la password, c'è un link dedicato al reset direttamente nella pagina di login.",
+          },
+          {
+            title: "Dispositivo consigliato",
+            body: "JOOR consiglia di usare Google Chrome su desktop o iPad per operare sulla piattaforma.",
+            detail: "Il cellulare è sconsigliato per la gestione completa dell'account: alcune funzioni sono pensate per schermi più grandi.",
+            warn: "Questa indicazione è confermata per l'area Rivenditori Lite; per l'account Brand standard vale probabilmente lo stesso principio, ma non è confermato nei dettagli pubblici.",
+          },
+          {
+            title: "Problemi di accesso",
+            body: "Se non riesci ad accedere, la pagina di login ha un link diretto per contattare il team di assistenza JOOR.",
+            detail: "Email generale di supporto: support@joor.com",
+          },
+        ],
+      },
+      {
+        label: "Linesheet e catalogo",
+        steps: [
+          {
+            title: "Cos'è il Linesheet",
+            body: "È il catalogo digitale dei tuoi stili, organizzato per stagione/collezione, da cui i buyer sfogliano i prodotti e costruiscono gli ordini.",
+            detail: "Gestisci il catalogo con linesheet personalizzate, inventario live e azioni massive su più articoli insieme.",
+          },
+          {
+            title: "Struttura prodotto",
+            body: "Ogni stile è organizzato in una gerarchia: Stile → Colore (colorway) → Taglie, con relative quantità disponibili.",
+            detail: "Se un colore o una taglia non compaiono nel linesheet, il problema è quasi sempre a monte, nella sincronizzazione dati dal tuo gestionale (es. Zedonk) — vedi sezione Ciclo Ordine.",
+          },
+        ],
+      },
+      {
+        label: "Gestione ordini",
+        steps: [
+          {
+            title: "Creazione ordine",
+            body: "Da web: apri il Linesheet, seleziona stile → colore → compila la griglia taglie, poi 'Add to Order'. Da app iPad: aggiungi stili al carrello con pochi tap, anche per più ordini insieme.",
+            detail: "Vedi la sezione 'Creazione Ordine' per il dettaglio passo-passo.",
+          },
+          {
+            title: "Approvazione e azioni in blocco",
+            body: "Nella pagina Orders puoi approvare ordini singolarmente o in blocco con lo strumento Actions, che permette anche di riportare un ordine a uno stato precedente e di inviare email di conferma durante l'aggiornamento.",
+            detail: "Solo gli ordini con stato Approved o Shipped vengono resi disponibili per l'export verso il gestionale, su base oraria.",
+            warn: "L'export verso Zedonk avviene una sola volta, al momento dell'approvazione: modifiche successive non si sincronizzano da sole.",
+          },
+          {
+            title: "Permessi utente",
+            body: "È possibile impostare restrizioni per singoli utenti, ad esempio impedendo loro di approvare ordini (permesso 'Restrict User from Approving Orders').",
+            detail: "Utile per separare chi prende gli ordini (es. agenti/rep) da chi li valida definitivamente.",
+          },
+        ],
+      },
+      {
+        label: "JOOR Passport (fiere digitali)",
+        steps: [
+          {
+            title: "Cos'è",
+            body: "Aggrega i principali eventi di moda del settore: con un unico login, i buyer si collegano ai brand partecipanti attraverso showroom virtuali.",
+            detail: "Il tuo profilo pubblico (info di base, lookbook) è visibile a tutti; listini e prezzi restano visibili solo ai retailer connessi o approvati.",
+          },
+          {
+            title: "Pre-approvazione retailer",
+            body: "Come brand partecipante puoi pre-approvare in blocco una lista di retailer curati confermati per l'evento, così hanno accesso rapido a listini e prezzi fin dal lancio della fiera.",
+            detail: "",
+          },
+        ],
+      },
+      {
+        label: "Risorse e assistenza",
+        steps: [
+          {
+            title: "Webinar mensili",
+            body: "JOOR organizza webinar mensili gratuiti su come usare l'account: visualizzare linesheet, modificare o inviare ordini e altro.",
+            detail: "Iscrizione dalla pagina joor.com/register-for-our-webinar.",
+          },
+          {
+            title: "Centro assistenza completo",
+            body: "La documentazione ufficiale completa (Zedonkopedia-equivalente per JOOR) è su help.jooraccess.com, ma richiede login con le tue credenziali JOOR per essere consultata.",
+            detail: "",
+            warn: "Non è pubblicamente accessibile: per aggiungere altri dettagli verificati a questa sezione, serve che tu acceda e mi incolli il contenuto o mandi screenshot, come fatto per Zedonk.",
+          },
+        ],
+      },
+    ],
+  },
 ];
