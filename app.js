@@ -420,7 +420,13 @@ const VAULT_MAX_IMAGES = 4;
 const VAULT_MAX_DOC_CHARS = 900000; // margine sotto il limite di 1MB/documento Firestore
 
 function b64encode(bytes) {
-  return btoa(String.fromCharCode(...new Uint8Array(bytes)));
+  const arr = new Uint8Array(bytes);
+  let binary = "";
+  const chunkSize = 0x8000; // 32768 byte per blocco, per non superare il limite argomenti
+  for (let i = 0; i < arr.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, arr.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
 }
 function b64decode(str) {
   return Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
