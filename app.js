@@ -420,13 +420,16 @@ const VAULT_MAX_IMAGES = 4;
 const VAULT_MAX_DOC_CHARS = 900000; // margine sotto il limite di 1MB/documento Firestore
 
 function b64encode(bytes) {
-  const arr = new Uint8Array(bytes);
-  let binary = "";
-  const chunkSize = 0x8000; // 32768 byte per blocco, per non superare il limite argomenti
-  for (let i = 0; i < arr.length; i += chunkSize) {
-    binary += String.fromCharCode.apply(null, arr.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([new Uint8Array(bytes)]);
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Conversione base64 fallita."));
+    reader.onload = () => {
+      const result = reader.result; // "data:...;base64,XXXX"
+      resolve(result.slice(result.indexOf(",") + 1));
+    };
+    reader.readAsDataURL(blob);
+  });
 }
 function b64decode(str) {
   return Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
@@ -439,7 +442,7 @@ async function getOrCreateVaultSalt(ws) {
     let saved = localStorage.getItem(key);
     if (!saved) {
       const salt = crypto.getRandomValues(new Uint8Array(16));
-      saved = b64encode(salt);
+      saved = await b64encode(salt);
       localStorage.setItem(key, saved);
     }
     return b64decode(saved);
@@ -450,7 +453,7 @@ async function getOrCreateVaultSalt(ws) {
     return b64decode(snap.data().salt);
   }
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  await ref.set({ salt: b64encode(salt) });
+  await ref.set({ salt: await b64encode(salt) });
   return salt;
 }
 
@@ -470,7 +473,9 @@ async function vaultEncrypt(key, plaintext) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const enc = new TextEncoder();
   const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plaintext));
-  return { iv: b64encode(iv), ciphertext: b64encode(ciphertext) };
+  const ivB64 = await b64encode(iv);
+  const ciphertextB64 = await b64encode(ciphertext);
+  return { iv: ivB64, ciphertext: ciphertextB64 };
 }
 
 async function vaultDecrypt(key, ivB64, ciphertextB64) {
@@ -740,7 +745,7 @@ async function addVaultImage(id, file) {
     encryptedImage = await vaultEncrypt(vaultKey, dataUrl);
   } catch (err) {
     console.error("Errore cifratura immagine:", err);
-    alert("Errore durante la cifratura dell'immagine.");
+    alert("Errore durante la cifratura dell'immagine: " + (err.name || "") + " " + (err.message || err));
     return;
   }
 
