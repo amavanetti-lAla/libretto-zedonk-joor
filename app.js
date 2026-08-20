@@ -1,4 +1,4 @@
-// ============================================================
+ // ============================================================
 // App: navigazione, rendering contenuti, note personali (Firebase)
 // ============================================================
 
@@ -404,10 +404,20 @@ function initHeaderCollapse() {
 // "sale" salvato in Firestore (il sale non è segreto, serve solo a
 // rendere unica la cifratura). Senza la passphrase giusta, i dati
 // restano illeggibili anche a chi ha accesso al database.
+//
+// Ogni voce può contenere anche delle immagini allegate (fino a
+// VAULT_MAX_IMAGES per voce): vengono ridimensionate/compresse via
+// <canvas>, convertite in data-URL e cifrate una per una con la stessa
+// chiave del testo, ma con IV proprio. Sono salvate separatamente dal
+// campo testo (entry.images) così salvare la nota non tocca gli allegati
+// e viceversa.
 
 let vaultKey = null; // CryptoKey, solo in memoria, mai salvata
 let vaultUnsub = null;
-let vaultCache = {}; // id -> {iv, ciphertext, updatedAt}
+let vaultCache = {}; // id -> {iv, ciphertext, updatedAt, images?}
+
+const VAULT_MAX_IMAGES = 4;
+const VAULT_MAX_DOC_CHARS = 900000; // margine sotto il limite di 1MB/documento Firestore
 
 function b64encode(bytes) {
   return btoa(String.fromCharCode(...new Uint8Array(bytes)));
@@ -564,10 +574,20 @@ async function renderVaultEntries() {
     const entry = vaultCache[id];
     let text = "";
     try {
-      text = await vaultDecrypt(vaultKey, entry.iv, entry.ciphertext);
+      text = entry.iv ? await vaultDecrypt(vaultKey, entry.iv, entry.ciphertext) : "";
     } catch {
       text = "⚠️ Impossibile decifrare (passphrase diversa da quella usata per salvare questa voce).";
     }
+
+    const imageUrls = [];
+    for (const img of entry.images || []) {
+      try {
+        imageUrls.push(await vaultDecrypt(vaultKey, img.iv, img.ciphertext));
+      } catch {
+        imageUrls.push(null);
+      }
+    }
+
     const date = entry.updatedAt ? new Date(entry.updatedAt).toLocaleDateString("it-IT") : "";
     const card = document.createElement("div");
     card.className = "note-card";
@@ -577,6 +597,24 @@ async function renderVaultEntries() {
         <button class="note-del" data-id="${id}">elimina</button>
       </div>
       <textarea data-id="${id}" placeholder="Scrivi qui...">${escapeHtml(text)}</textarea>
+      <div class="vault-images" data-id="${id}">
+        ${imageUrls
+          .map((url, i) =>
+            url
+              ? `<div class="vault-image-thumb">
+                   <img src="${url}" data-id="${id}" data-idx="${i}" class="vault-image-view" alt="allegato" />
+                   <button class="vault-image-del" data-id="${id}" data-idx="${i}">✕</button>
+                 </div>`
+              : `<div class="vault-image-thumb vault-image-error">⚠️</div>`
+          )
+          .join("")}
+      </div>
+      <div class="vault-image-add">
+        <label class="vault-image-add-btn">
+          📷 aggiungi immagine
+          <input type="file" accept="image/*" data-id="${id}" class="vault-image-input" hidden />
+        </label>
+      </div>
     `;
     body.appendChild(card);
   }
@@ -591,6 +629,19 @@ async function renderVaultEntries() {
   body.querySelectorAll(".note-del").forEach((btn) => {
     btn.addEventListener("click", () => deleteVaultEntry(btn.dataset.id));
   });
+  body.querySelectorAll(".vault-image-input").forEach((input) => {
+    input.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) addVaultImage(input.dataset.id, file);
+      input.value = "";
+    });
+  });
+  body.querySelectorAll(".vault-image-del").forEach((btn) => {
+    btn.addEventListener("click", () => deleteVaultImage(btn.dataset.id, Number(btn.dataset.idx)));
+  });
+  body.querySelectorAll(".vault-image-view").forEach((img) => {
+    img.addEventListener("click", () => openVaultImageLightbox(img.src));
+  });
 }
 
 async function saveVaultEntry(id, plaintext) {
@@ -600,11 +651,102 @@ async function saveVaultEntry(id, plaintext) {
   const entry = { iv, ciphertext, updatedAt: Date.now() };
 
   if (firebaseDb) {
-    firebaseDb.collection("workspaces").doc(ws).collection("secure").doc(id).set(entry);
+    firebaseDb.collection("workspaces").doc(ws).collection("secure").doc(id).set(entry, { merge: true });
   } else {
-    vaultCache[id] = entry;
+    vaultCache[id] = { ...(vaultCache[id] || {}), ...entry };
     saveVaultLocal();
   }
+}
+
+async function saveVaultImages(id, images) {
+  const ws = getWorkspaceId();
+  const patch = { images, updatedAt: Date.now() };
+
+  if (firebaseDb) {
+    firebaseDb.collection("workspaces").doc(ws).collection("secure").doc(id).set(patch, { merge: true });
+  } else {
+    vaultCache[id] = { ...(vaultCache[id] || {}), ...patch };
+    saveVaultLocal();
+    await renderVaultEntries();
+  }
+}
+
+function resizeImageFile(file, maxDim = 1400, quality = 0.65) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Lettura file fallita."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Immagine non valida."));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width >= height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function addVaultImage(id, file) {
+  if (!vaultKey) return;
+  if (!file || !file.type.startsWith("image/")) {
+    alert("Seleziona un file immagine valido.");
+    return;
+  }
+
+  const entry = vaultCache[id] || { updatedAt: Date.now() };
+  const currentImages = entry.images || [];
+  if (currentImages.length >= VAULT_MAX_IMAGES) {
+    alert(`Puoi allegare al massimo ${VAULT_MAX_IMAGES} immagini per voce.`);
+    return;
+  }
+
+  let dataUrl;
+  try {
+    dataUrl = await resizeImageFile(file);
+  } catch {
+    alert("Impossibile leggere l'immagine.");
+    return;
+  }
+
+  const encryptedImage = await vaultEncrypt(vaultKey, dataUrl);
+  const images = [...currentImages, encryptedImage];
+
+  if (JSON.stringify({ ...entry, images }).length > VAULT_MAX_DOC_CHARS) {
+    alert("Questa immagine è troppo grande (o la voce ha già troppi allegati). Prova con un'immagine più piccola o rimuovine una esistente.");
+    return;
+  }
+
+  await saveVaultImages(id, images);
+}
+
+async function deleteVaultImage(id, imageIndex) {
+  const entry = vaultCache[id];
+  if (!entry || !entry.images) return;
+  const images = entry.images.filter((_, i) => i !== imageIndex);
+  await saveVaultImages(id, images);
+}
+
+function openVaultImageLightbox(src) {
+  const overlay = document.createElement("div");
+  overlay.className = "vault-lightbox";
+  overlay.innerHTML = `<img src="${src}" alt="anteprima" />`;
+  overlay.addEventListener("click", () => overlay.remove());
+  document.body.appendChild(overlay);
 }
 
 async function addVaultEntry() {
