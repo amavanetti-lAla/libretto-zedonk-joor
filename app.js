@@ -1,4 +1,4 @@
- // ============================================================
+// ============================================================
 // App: navigazione, rendering contenuti, note personali (Firebase)
 // ============================================================
 
@@ -662,12 +662,17 @@ async function saveVaultImages(id, images) {
   const ws = getWorkspaceId();
   const patch = { images, updatedAt: Date.now() };
 
-  if (firebaseDb) {
-    firebaseDb.collection("workspaces").doc(ws).collection("secure").doc(id).set(patch, { merge: true });
-  } else {
-    vaultCache[id] = { ...(vaultCache[id] || {}), ...patch };
-    saveVaultLocal();
-    await renderVaultEntries();
+  try {
+    if (firebaseDb) {
+      await firebaseDb.collection("workspaces").doc(ws).collection("secure").doc(id).set(patch, { merge: true });
+    } else {
+      vaultCache[id] = { ...(vaultCache[id] || {}), ...patch };
+      saveVaultLocal();
+      await renderVaultEntries();
+    }
+  } catch (err) {
+    console.error("Errore salvataggio immagine:", err);
+    alert("Salvataggio immagine fallito: " + (err.message || err));
   }
 }
 
@@ -718,12 +723,21 @@ async function addVaultImage(id, file) {
   let dataUrl;
   try {
     dataUrl = await resizeImageFile(file);
-  } catch {
-    alert("Impossibile leggere l'immagine.");
+  } catch (err) {
+    console.error("Errore lettura/ridimensionamento immagine:", err);
+    alert("Impossibile leggere questa immagine (formato non supportato dal browser?): " + (err.message || err));
     return;
   }
 
-  const encryptedImage = await vaultEncrypt(vaultKey, dataUrl);
+  let encryptedImage;
+  try {
+    encryptedImage = await vaultEncrypt(vaultKey, dataUrl);
+  } catch (err) {
+    console.error("Errore cifratura immagine:", err);
+    alert("Errore durante la cifratura dell'immagine.");
+    return;
+  }
+
   const images = [...currentImages, encryptedImage];
 
   if (JSON.stringify({ ...entry, images }).length > VAULT_MAX_DOC_CHARS) {
